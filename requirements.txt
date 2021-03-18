@@ -1,3 +1,5 @@
 selenium
 flask
 twilio
+redis
+requests

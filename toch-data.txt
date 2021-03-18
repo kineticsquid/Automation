@@ -1,0 +1,15 @@
+1/6 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule= 4008402 &widget_key= diff
+1/7 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule= 4014804 &widget_key=
+1/8 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule= 4020896 &widget_key=
+1/11 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule= 4035859 &widget_key=
+1/12 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule= 4041979 &widget_key=
+1/13 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule= 4047593 &widget_key= 39191
+1/14 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule= 4053523 &widget_key= 38719
+1/15 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule= 4065637 &widget_key= 44741
+1/19 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule=4041979&widget_key= same as tue week earlier
+1/20 https://tochaq.getomnify.com/checkout/66266/?type=class&timezone=America%2FNew_York&selected_schedule=4047593&widget_key= same as wed week earlier
+1/
+
+
+
+

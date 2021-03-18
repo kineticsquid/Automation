@@ -1,2 +1,2 @@
-Dev environment
-build.txt
+Automation server
+Temp file for running locally

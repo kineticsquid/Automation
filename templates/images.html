@@ -1,0 +1,20 @@
+<html>
+<head>
+  <base href="/">
+  <title>Voice Gateway SOE</title>
+  <link rel="shortcut icon" href="{{url_root}}/static/img/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="{{url_root}}/static/css/style.css">
+</head>
+<body>
+<h1>{{title}}</h1>
+<ul>
+    {% for file in files %}
+    <li>
+        <a href="{{url_root}}/runtime_images{{file}}">
+            {{file}}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+</body>
+</html>
