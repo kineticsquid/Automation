@@ -7,7 +7,7 @@ echo "To examine contents: 'docker run -it kineticsquid/automation:latest sh'"
 ibmcloud cr login
 docker rmi kineticsquid/automation:latest
 # Use "--rm" to remove intermediate images
-docker build --rm -t kineticsquid/automation:latest -f Dockerfile-Firefox .
+docker build --rm --no-cache --pull -t kineticsquid/automation:latest -f Dockerfile-Firefox .
 docker push kineticsquid/automation:latest
 
 # list the current images
