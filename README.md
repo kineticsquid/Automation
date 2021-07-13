@@ -6,10 +6,6 @@
 - https://jamesthom.as/2017/08/large-applications-on-openwhisk/
 - https://cloud.ibm.com/docs/openwhisk?topic=openwhisk-prep#prep_python_docker
 
-To execute `kubectl commands to my cluster`:
-```bash
-ibmcloud ks cluster config --cluster bp2vucbw0acqse0v8p9g
-```
 To list containers:
 ```bash
 docker ps
