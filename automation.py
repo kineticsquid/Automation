@@ -150,14 +150,12 @@ def webtrac():
     # https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Module=AR&Display=Calendar&CalendarFMID=40440968&BeginMonth=1&BeginYear=2021
 
     now = datetime.now()
-    this_day = now.strftime("%a")
     wait_time_between_tried_in_secs = 120
     total_processing_time_in_secs = 8 * 60 * 60
 
-    if this_day == 'Sat' or this_day == 'Sun':
-        webtrac_url = "%s&BeginMonth=%s&BeginYear=%s" % (WEBTRAC_URL_WEEKEND, one_week_out_month, one_week_out_year)
-    else:
-        webtrac_url = "%s&BeginMonth=%s&BeginYear=%s" % (WEBTRAC_URL_WEEKDAY, one_week_out_month, one_week_out_year)
+    webtrac_url = WEBTRAC_HAC
+
+    reservation_url = WEBTRAC_630AM_RESERVATION % (one_week_out_month_string, one_week_out_day_string, one_week_out_year)
 
     print('================== New Request ====================')
     print('Local time: %s' % now.strftime(' %a - %m/%d - %H:%M:%S'))
@@ -185,42 +183,18 @@ def webtrac():
                 driver.get(webtrac_url)
                 wait.until(expected_conditions.visibility_of_element_located((By.ID, 'content')))
                 print('Schedule calendar loaded.')
-                if count == 1:
-                    send_screen_cap(driver)
                 # At this point the calendar for this pool schedule is visible
 
-                # Now we're going to loop through the days in the calendar, being sure to skip to the
-                # beginning of the month, looking for the calendar entry for the day we want the reservation
-                days = driver.find_elements_by_class_name('day')
-                found_the_1st = False
-                target_day = None
-                for day in days:
-                    day_text = re.match(r'\d+', day.text).group(0)
-                    if day_text == '1':
-                        found_the_1st = True
-                    if found_the_1st and day_text == one_week_out_day:
-                        target_day = day
-                        break
+                driver.get(reservation_url)
+                print('Attempted to make reservation at %s' % reservation_url)
+                print(driver.page_source)
+                driver.back()
 
-                #  Not sure if this could happen
-                if target_day is None:
-                    raise Exception('Unable to find correct calendar entry')
-
-                # Now click the calendar day we want the reservation on
-                target_day.click()
-                wait.until(expected_conditions.visibility_of_element_located((By.CLASS_NAME,
-                                            'websearch_multiselect_buttonaddtocart')))
-
-                print('Found correct day and clicked it.')
-                if count == 1:
-                    send_screen_cap(driver)
                 # Click the confirmation to add the reservation to shopping cart
                 add_button = driver.find_element_by_class_name('websearch_multiselect_buttonaddtocart')
                 add_button.click()
                 wait.until(expected_conditions.visibility_of_element_located((By.ID, 'content')))
                 print('Selected calendar schedule day and confirmed add to cart.')
-                if count == 1:
-                    send_screen_cap(driver)
 
                 # We're logged in, now presented with terms of use, click the checkbox and the click on the
                 # continue button.Sometimes these terms do not show up. Don't understand when.
@@ -255,14 +229,8 @@ def webtrac():
                 continue_checkout_button.click()
                 print('Checked out.')
 
-                # Click to get email verification
-                email_conf_button = driver.find_element_by_id('webconfirmation_buttonsumbit')
-                email_conf_button.click()
-                print('Email confirmation sent.')
                 done = True
             except Exception as e:
-                if count == 1:
-                    send_screen_cap(driver)
                 print('Exception: %s' % e)
                 print('Unsuccessful on attempt: %s. Waiting for %s secs.' % (count, wait_time_between_tried_in_secs))
                 time.sleep(wait_time_between_tried_in_secs)
@@ -286,20 +254,17 @@ def webtrac():
         print(e)
         traceback.print_exc()
         print('Session ID: %s' % driver.session_id)
-        if HEADLESS:
-            send_screen_cap(driver)
-            send_sms(e)
         response_content = {'Result': 'Error: %s' % e}
         return Response(json.dumps(response_content), status=500, mimetype='application/json')
 
-def send_screen_cap(driver):
-    r = request
-    now = datetime.now()
-    filename = '/automation/%s.%s.png' % (now.strftime('%m-%d-%H-%M-%S'), uuid.uuid1())
-    mms_url = "http://%s/runtime_images%s" % (r.host, filename)
-    image = driver.get_screenshot_as_png()
-    redis_client.setex(filename, REDIS_TTL, image)
-    send_mms(mms_url)
+# def send_screen_cap(driver):
+#     r = request
+#     now = datetime.now()
+#     filename = '/automation/%s.%s.png' % (now.strftime('%m-%d-%H-%M-%S'), uuid.uuid1())
+#     mms_url = "http://%s/runtime_images%s" % (r.host, filename)
+#     image = driver.get_screenshot_as_png()
+#     redis_client.setex(filename, REDIS_TTL, image)
+#     send_mms(mms_url)
 
 
 @app.route('/runtime_images', defaults={'file_path': ''})
@@ -340,12 +305,11 @@ def clear_redis():
 
 # Base URL
 WEBTRAC_URL_BASE = 'https://webtrac.townofchapelhill.org/'
-# This is the weekday 7:00 competition pool schedule
-WEBTRAC_URL_WEEKDAY = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Module=AR&Display=Calendar&CalendarFMID=44102448'
-# This is the weekday 2:00 competition pool schedule
-# WEBTRAC_URL_WEEKDAY = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Module=AR&Display=Calendar&CalendarFMID=44104396'
-# This is the wehttps://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Module=AR&Display=Calendar&CalendarFMID=44104396ekday 5:00 program pool schedule
-# WEBTRAC_URL_WEEKDAY = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Module=AR&Display=Calendar&CalendarFMID=44104476'
+
+# This is the weekday 6:30 AM competition pool schedule
+WEBTRAC_HAC = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=Start&SubAction=&type=AQUA&subtype=HALAPRES&category=&age=&keyword=&keywordoption=Match+One&sort=ActivityNumber&primarycode=&display=Calendar&module=AR&multiselectlist_value=&arwebsearch_buttonsearch=Search'
+
+WEBTRAC_630AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=45118600&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=23400&Module=AR'
 
 WEBTRAC_USERID = os.environ['WEBTRAC_USERID']
 WEBTRAC_PASSWORD = os.environ['WEBTRAC_PASSWORD']
