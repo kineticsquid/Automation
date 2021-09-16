@@ -158,7 +158,7 @@ def webtrac():
 
     webtrac_url = WEBTRAC_HAC
 
-    reservation_url = WEBTRAC_630AM_RESERVATION % (one_week_out_month_string, one_week_out_day_string, one_week_out_year)
+    reservation_url = WEBTRAC_830AM_RESERVATION % (one_week_out_month_string, one_week_out_day_string, one_week_out_year)
 
     print('================== New Request ====================')
     print('Local time: %s' % now.strftime(' %a - %m/%d - %H:%M:%S'))
@@ -306,13 +306,11 @@ def clear_redis():
         redis_client.delete(key)
     return Response('Removed %s redis entries' % number_of_entries, mimetype='text/text', status=200)
 
-# Base URL
 WEBTRAC_URL_BASE = 'https://webtrac.townofchapelhill.org/'
-
-# This is the weekday 6:30 AM competition pool schedule
 WEBTRAC_HAC = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=Start&SubAction=&type=AQUA&subtype=HALAPRES&category=&age=&keyword=&keywordoption=Match+One&sort=ActivityNumber&primarycode=&display=Calendar&module=AR&multiselectlist_value=&arwebsearch_buttonsearch=Search'
 
 WEBTRAC_630AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=45118600&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=23400&Module=AR'
+WEBTRAC_830AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=45118604&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=30600&Module=AR'
 
 WEBTRAC_USERID = os.environ['WEBTRAC_USERID']
 WEBTRAC_PASSWORD = os.environ['WEBTRAC_PASSWORD']
@@ -325,7 +323,7 @@ REDIS_TTL = 60 * 60 * 48
 CHROME_DRIVER_EXECUTABLE = 'chromedriver'
 FIREFOX_DRIVER_EXECUTABLE = 'geckodriver'
 DRIVER_PATH = './'
-PORT = 5040
+PORT = os.getenv('PORT', '5030')
 
 
 if 'BROWSER' in os.environ:
@@ -366,7 +364,6 @@ redis_client = redis.Redis(
     port=REDIS_PORT,
     password=REDIS_PW)
 
-port = os.getenv('PORT', PORT)
 print('Starting %s....' % sys.argv[0])
 print('Python: ' + sys.version)
 build_file = open('./static/build.txt')
@@ -377,4 +374,4 @@ build_file.close()
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(port))
+    app.run(host='0.0.0.0', port=int(PORT))
