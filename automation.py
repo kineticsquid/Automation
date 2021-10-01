@@ -290,7 +290,7 @@ def images(file_path):
 
 @app.route('/build', methods=['GET', 'POST'])
 def build():
-    return app.send_static_file('build.txt')
+    return os.environ['DATE']
 
 
 @app.route('/favicon.ico')
@@ -309,8 +309,8 @@ def clear_redis():
 WEBTRAC_URL_BASE = 'https://webtrac.townofchapelhill.org/'
 WEBTRAC_HAC = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=Start&SubAction=&type=AQUA&subtype=HALAPRES&category=&age=&keyword=&keywordoption=Match+One&sort=ActivityNumber&primarycode=&display=Calendar&module=AR&multiselectlist_value=&arwebsearch_buttonsearch=Search'
 
-WEBTRAC_630AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=45118600&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=23400&Module=AR'
-WEBTRAC_830AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=45118604&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=30600&Module=AR'
+WEBTRAC_630AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=46877848&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=23400&Module=AR'
+WEBTRAC_830AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=46877848&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=30600&Module=AR'
 
 WEBTRAC_USERID = os.environ['WEBTRAC_USERID']
 WEBTRAC_PASSWORD = os.environ['WEBTRAC_PASSWORD']
@@ -323,7 +323,6 @@ REDIS_TTL = 60 * 60 * 48
 CHROME_DRIVER_EXECUTABLE = 'chromedriver'
 FIREFOX_DRIVER_EXECUTABLE = 'geckodriver'
 DRIVER_PATH = './'
-PORT = os.getenv('PORT', '5030')
 
 
 if 'BROWSER' in os.environ:
@@ -366,12 +365,7 @@ redis_client = redis.Redis(
 
 print('Starting %s....' % sys.argv[0])
 print('Python: ' + sys.version)
-build_file = open('./static/build.txt')
-print('Running build:')
-for line in build_file.readlines():
-    print(line.strip())
-build_file.close()
-
+print('Running build: %s' % os.environ['DATE'])
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(PORT))
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))

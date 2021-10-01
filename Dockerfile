@@ -2,27 +2,23 @@ FROM selenium/standalone-chrome
 
 USER root
 
-RUN apt-get update && apt-get install -y \
+RUN sudo apt-get update && apt-get install -y \
     python3-pip
 
-WORKDIR /app
-RUN mkdir /app/screen_caps
-RUN mkdir /app/static
-ADD static/ /app/static/
-RUN mkdir /app/templates
-ADD templates/ /app/templates/
-ADD requirements.txt /app
+# Allow statements and log messages to immediately appear in the Knative logs
+ENV PYTHONUNBUFFERED True
 
-RUN pip3 install -r requirements.txt
+# Copy local code to the container image.
+ENV APP_HOME /app
+WORKDIR $APP_HOME
+COPY . ./
 
-ADD automation.py /app
-ADD tag-build.sh /app
-RUN /app/tag-build.sh > /app/static/build.txt
+# Install production dependencies.
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN ls -R
-RUN cat /app/static/build.txt
-
-EXPOSE 5030
-
-# Run app.py when the container launches
-CMD ["python3", "automation.py"]
+# Run the web service on container startup. Here we use the gunicorn
+# webserver, with one worker process and 8 threads.
+# For environments with multiple CPU cores, increase the number of workers
+# to be equal to the cores available.
+# Timeout is set to 0 to disable the timeouts of the workers to allow Cloud Run to handle instance scaling.
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 automation:app
