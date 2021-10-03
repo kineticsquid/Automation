@@ -1,4 +1,6 @@
-FROM selenium/standalone-chrome
+FROM selenium/standalone-opera
+#FROM selenium/standalone-chrome
+
 
 USER root
 
@@ -15,6 +17,8 @@ COPY . ./
 
 # Install production dependencies.
 RUN pip install --no-cache-dir -r requirements.txt
+
+USER seluser
 
 # Run the web service on container startup. Here we use the gunicorn
 # webserver, with one worker process and 8 threads.

@@ -6,6 +6,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.options import Options as SafariOptions
+from selenium.webdriver.chrome.options import Options as OperaOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
@@ -107,6 +108,12 @@ def get_browser_options():
             options.headless = True
         else:
             options.headless = False
+    elif BROWSER == 'Opera':
+        options = OperaOptions()
+        if HEADLESS is True:
+            options.headless = True
+        else:
+            options.headless = False
     else:
         options = ChromeOptions()
 
@@ -133,10 +140,9 @@ def webtrac():
             firefox_binary = FirefoxBinary(firefox_executable)
             driver = webdriver.Firefox(firefox_binary=firefox_binary, options=options)
     elif BROWSER == 'Safari':
-        if docker:
-            driver = webdriver.Safari()
-        else:
-            driver = webdriver.Safari()
+        driver = webdriver.Safari(options=options)
+    elif BROWSER == 'Opera':
+        driver = webdriver.Opera(options=options)
     else:
         raise Exception('Invalid value for \'BROWSER\' environment variable')
     driver.set_window_size(1600, 1792)
@@ -322,6 +328,7 @@ REDIS_PORT = os.environ['REDIS_PORT']
 REDIS_TTL = 60 * 60 * 48
 CHROME_DRIVER_EXECUTABLE = 'chromedriver'
 FIREFOX_DRIVER_EXECUTABLE = 'geckodriver'
+OPERA_DRIVER_EXECUTABLE = 'operadriver'
 DRIVER_PATH = './'
 
 
@@ -365,7 +372,12 @@ redis_client = redis.Redis(
 
 print('Starting %s....' % sys.argv[0])
 print('Python: ' + sys.version)
-print('Running build: %s' % os.environ['DATE'])
+date = os.environ.get('DATE')
+if date is None:
+    date = 'dev environment'
+print('Running build: %s' % date)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+
