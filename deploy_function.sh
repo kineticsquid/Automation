@@ -9,10 +9,11 @@ gcloud run deploy automation --allow-unauthenticated --project cloud-run-stuff -
   --source ./ --set-env-vars=DATE=$DATE \
   --set-env-vars=TWILIO_ACCOUNT_SID=$TWILIO_ACCOUNT_SID \
   --set-env-vars=TWILIO_AUTH_TOKEN=$TWILIO_AUTH_TOKEN \
-  --set-env-vars=HEADLESS=$HEADLESS \
   --set-env-vars=REDIS_HOST=$REDIS_HOST \
   --set-env-vars=REDIS_PORT=$REDIS_PORT \
   --set-env-vars=REDIS_PW=$REDIS_PW \
   --set-env-vars=BROWSER=$BROWSER \
   --set-env-vars=WEBTRAC_USERID=$WEBTRAC_USERID \
-  --set-env-vars=WEBTRAC_PASSWORD=$WEBTRAC_PASSWORD
+  --set-env-vars=WEBTRAC_PASSWORD=$WEBTRAC_PASSWORD \
+  --set-env-vars=HEADLESS=$HEADLESS \
+  --set-env-vars=CONTAINER=$CONTAINER

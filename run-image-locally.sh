@@ -17,6 +17,8 @@ docker run --rm -p 5030:5030 \
   --env WEBTRAC_PASSWORD=${WEBTRAC_PASSWORD} \
   --env PORT=${PORT} \
   --env DATE=$DATE \
+  --env CONTAINER=${CONTAINER} \
+  --env HEADLESS=${HEADLESS} \
   kineticsquid/automation-gcloud:latest
 
 

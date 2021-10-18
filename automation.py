@@ -91,32 +91,32 @@ def get_browser_options():
 
     if BROWSER == 'Chrome':
         options = ChromeOptions()
-        # ref: https://stackoverflow.com/questions/53902507/unknown-error-session-deleted-because-of-page-crash-from-unknown-error-cannot
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        if HEADLESS is True:
-            options.headless = True
-        else:
-            options.headless = False
     elif BROWSER == 'Firefox':
         options = FirefoxOptions()
-        if HEADLESS is True:
-            options.add_argument("--headless")
     elif BROWSER == 'Safari':
         options = SafariOptions()
-        if HEADLESS is True:
-            options.headless = True
-        else:
-            options.headless = False
     elif BROWSER == 'Opera':
         options = OperaOptions()
-        if HEADLESS is True:
-            options.headless = True
-        else:
-            options.headless = False
     else:
         options = ChromeOptions()
 
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    if HEADLESS is True:
+        options.add_argument("--headless")
+
+    # options.add_argument('--ignore-certificate-errors')
+    # options.add_argument("--test-type")
+    # options.addArguments("test-type");
+    # options.addArguments("start-maximized");
+    # options.addArguments("--enable-precise-memory-info");
+    # options.addArguments("--disable-popup-blocking");
+    # options.addArguments("--disable-default-apps");
+    # options.addArguments("test-type=browser");
+    # options.AddArgument("--incognito");
+
+    print("Options:")
+    print(options.arguments)
     return options
 
 @app.route('/')
@@ -128,12 +128,12 @@ def automation():
 def webtrac():
     options = get_browser_options()
     if BROWSER == 'Chrome':
-        if docker:
+        if container:
             driver = webdriver.Chrome(options=options)
         else:
             driver = webdriver.Chrome(DRIVER_PATH + CHROME_DRIVER_EXECUTABLE, options=options)
     elif BROWSER == 'Firefox':
-        if docker:
+        if container:
             driver = webdriver.Firefox(options=options)
         else:
             firefox_executable = "%s%s" % (DRIVER_PATH, FIREFOX_DRIVER_EXECUTABLE)
@@ -296,7 +296,7 @@ def images(file_path):
 
 @app.route('/build', methods=['GET', 'POST'])
 def build():
-    return os.environ['DATE']
+    return date_environ
 
 
 @app.route('/favicon.ico')
@@ -340,12 +340,12 @@ else:
 
 # Use the presence of HOSTNAME environment variable to determine if we're running in a Docker container
 # (HOSTNAME is defined) or locally (no HOSTNAME).
-if 'NODE_HOST' in os.environ:
+if 'CONTAINER' in os.environ:
     print('Starting in container')
-    docker = True
+    container = True
 else:
     print('Starting outside a container')
-    docker = False
+    container = False
 
 if 'HEADLESS' in os.environ:
     HEADLESS = os.environ['HEADLESS']
@@ -372,10 +372,13 @@ redis_client = redis.Redis(
 
 print('Starting %s....' % sys.argv[0])
 print('Python: ' + sys.version)
-date = os.environ.get('DATE')
-if date is None:
-    date = 'dev environment'
-print('Running build: %s' % date)
+date_environ = os.environ.get('DATE')
+if date_environ is None:
+    date_environ = 'dev environment'
+print('Running build: %s' % date_environ)
+print('Environment Variables:')
+environment_vars = dict(os.environ)
+print(environment_vars)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
