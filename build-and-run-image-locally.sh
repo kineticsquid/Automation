@@ -27,7 +27,3 @@ docker run --rm -p 5030:5030 \
   --env CONTAINER=${CONTAINER} \
   --env HEADLESS=${HEADLESS} \
   kineticsquid/automation-gcloud:latest
-
-
-
-
