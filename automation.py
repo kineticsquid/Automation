@@ -430,6 +430,7 @@ redis_client = redis.Redis(
 
 print('Starting %s %s' % (sys.argv[0], app.name))
 print('Python: ' + sys.version)
+
 try:
     build_file = open('static/build.txt')
     build_stamp = build_file.readlines()[0]
