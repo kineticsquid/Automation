@@ -60,7 +60,6 @@ jobs:
             BROWSER=${{ secrets.BROWSER }}, 
             WEBTRAC_USERID=${{ secrets.WEBTRAC_USERID }}, 
             WEBTRAC_PASSWORD=${{ secrets.WEBTRAC_PASSWORD }}, 
-            PORT=${{ secrets.PORT }}, 
             CONTAINER=${{ secrets.CONTAINER }}
 
       - name: test the url
