@@ -6,6 +6,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.options import Options as SafariOptions
+from selenium.webdriver.chrome.options import Options as OperaOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
@@ -23,6 +24,8 @@ from datetime import datetime, date
 import uuid
 import urllib.parse
 import re
+import requests
+from bs4 import BeautifulSoup, Tag
 
 print('Just getting started...')
 app = Flask(__name__)
@@ -90,26 +93,19 @@ def get_browser_options():
 
     if BROWSER == 'Chrome':
         options = ChromeOptions()
-        # ref: https://stackoverflow.com/questions/53902507/unknown-error-session-deleted-because-of-page-crash-from-unknown-error-cannot
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        if HEADLESS is True:
-            options.headless = True
-        else:
-            options.headless = False
     elif BROWSER == 'Firefox':
         options = FirefoxOptions()
-        if HEADLESS is True:
-            options.add_argument("--headless")
     elif BROWSER == 'Safari':
         options = SafariOptions()
-        if HEADLESS is True:
-            options.headless = True
-        else:
-            options.headless = False
+    elif BROWSER == 'Opera':
+        options = OperaOptions()
     else:
         options = ChromeOptions()
 
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    if HEADLESS is True:
+        options.add_argument("--headless")
     return options
 
 @app.route('/')
@@ -121,22 +117,21 @@ def automation():
 def webtrac():
     options = get_browser_options()
     if BROWSER == 'Chrome':
-        if docker:
+        if container:
             driver = webdriver.Chrome(options=options)
         else:
             driver = webdriver.Chrome(DRIVER_PATH + CHROME_DRIVER_EXECUTABLE, options=options)
     elif BROWSER == 'Firefox':
-        if docker:
+        if container:
             driver = webdriver.Firefox(options=options)
         else:
             firefox_executable = "%s%s" % (DRIVER_PATH, FIREFOX_DRIVER_EXECUTABLE)
             firefox_binary = FirefoxBinary(firefox_executable)
             driver = webdriver.Firefox(firefox_binary=firefox_binary, options=options)
     elif BROWSER == 'Safari':
-        if docker:
-            driver = webdriver.Safari()
-        else:
-            driver = webdriver.Safari()
+        driver = webdriver.Safari(options=options)
+    elif BROWSER == 'Opera':
+        driver = webdriver.Opera(options=options)
     else:
         raise Exception('Invalid value for \'BROWSER\' environment variable')
     driver.set_window_size(1600, 1792)
@@ -236,6 +231,8 @@ def webtrac():
             except Exception as e:
                 print('Exception: %s' % e)
                 print('Unsuccessful on attempt: %s. Waiting for %s secs.' % (count, wait_time_between_tried_in_secs))
+                if count == 1:
+                    send_screen_cap(driver)
                 time.sleep(wait_time_between_tried_in_secs)
                 count += 1
                 # driver.switch_to.alert.accept()
@@ -260,14 +257,69 @@ def webtrac():
         response_content = {'Result': 'Error: %s' % e}
         return Response(json.dumps(response_content), status=500, mimetype='application/json')
 
-# def send_screen_cap(driver):
-#     r = request
-#     now = datetime.now()
-#     filename = '/automation/%s.%s.png' % (now.strftime('%m-%d-%H-%M-%S'), uuid.uuid1())
-#     mms_url = "http://%s/runtime_images%s" % (r.host, filename)
-#     image = driver.get_screenshot_as_png()
-#     redis_client.setex(filename, REDIS_TTL, image)
-#     send_mms(mms_url)
+@app.route('/xbox')
+def xbox():
+    now = datetime.now()
+    print('================== New Request ====================')
+    print('Local time: %s' % now.strftime(' %a - %m/%d - %H:%M:%S'))
+    BEST_BUY_URL = 'https://www.bestbuy.com/site/searchpage.jsp?st=RRT-00001&_dyncharset=UTF-8&_dynSessConf=&id=pcat17071&type=page&sc=Global&cp=1&nrp=&sp=&qp=&list=n&af=true&iht=y&usc=All+Categories&ks=960&keys=keys'
+    GAME_STOP_URL = 'https://www.gamestop.com/products/microsoft-xbox-series-x/224744.html'
+    ANTONLINE_URL = 'https://www.antonline.com/Microsoft/Electronics/Gaming_Devices/Gaming_Consoles/1438263'
+
+    # Try GameStop
+    headers = {'referer': 'https://www.gamestop.com/',
+               'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36 OPR/80.0.4170.63'}
+    response = requests.get(GAME_STOP_URL, headers=headers)
+    if response.status_code != 200:
+        raise Exception('HTML error %s retrieving \'%s\'.' % (response.status_code, GAME_STOP_URL))
+    html = response.content.decode('utf-8')
+    soup = BeautifulSoup(html, "html.parser")
+    entries = soup.find_all(id='add-to-cart-buttons')
+    if len(entries) == 0:
+        raise Exception('Unable to find x-box at Game Stop web site')
+    if 'Unavailable' not in entries[0].text:
+        result_msg = 'Found it!\n\n%s.' % GAME_STOP_URL
+        send_sms(result_msg)
+    else:
+        result_msg = 'X-box unavailable currently at Gamestop.'
+    response_msg = result_msg
+
+    # Try Best Buy
+    headers = {'referer': 'https://www.bestbuy.com/',
+               'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36 OPR/80.0.4170.63'}
+    response = requests.get(BEST_BUY_URL, headers=headers)
+    if response.status_code != 200:
+        raise Exception('HTML error %s retrieving \'%s\'.' % (response.status_code, BEST_BUY_URL))
+    html = response.content.decode('utf-8')
+    soup = BeautifulSoup(html, "html.parser")
+    list = soup.find_all(class_='sku-item-list')
+    entries = soup.find_all(class_='fulfillment-add-to-cart-button')
+    combo_entries = soup.find_all(class_='fulfillment-combo-add-to-cart-button')
+    entries = entries + combo_entries
+    found = False
+    for entry in entries:
+        if 'Sold Out' not in entry.text:
+            result_msg = 'Found it!\n\n%s.' % BEST_BUY_URL
+            send_sms(result_msg)
+            found = True
+            break
+    if found:
+        response_msg = response_msg + ' %s' % result_msg
+    else:
+        response_msg = response_msg + ' All %s x-box consoles sold out at Best Buy.' % len(entries)
+
+    print(response_msg)
+    response_content = {'Result': response_msg}
+    return Response(json.dumps(response_content), status=200, mimetype='application/json')
+
+def send_screen_cap(driver):
+    r = request
+    now = datetime.now()
+    filename = '/automation/%s.%s.png' % (now.strftime('%m-%d-%H-%M-%S'), uuid.uuid1())
+    mms_url = "http://%s/runtime_images%s" % (r.host, filename)
+    image = driver.get_screenshot_as_png()
+    redis_client.setex(filename, REDIS_TTL, image)
+    send_mms(mms_url)
 
 
 @app.route('/runtime_images', defaults={'file_path': ''})
@@ -290,7 +342,7 @@ def images(file_path):
 
 @app.route('/build', methods=['GET', 'POST'])
 def build():
-    return app.send_static_file('build.txt')
+    return date_environ
 
 
 @app.route('/favicon.ico')
@@ -309,8 +361,8 @@ def clear_redis():
 WEBTRAC_URL_BASE = 'https://webtrac.townofchapelhill.org/'
 WEBTRAC_HAC = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=Start&SubAction=&type=AQUA&subtype=HALAPRES&category=&age=&keyword=&keywordoption=Match+One&sort=ActivityNumber&primarycode=&display=Calendar&module=AR&multiselectlist_value=&arwebsearch_buttonsearch=Search'
 
-WEBTRAC_630AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=45118600&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=23400&Module=AR'
-WEBTRAC_830AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=45118604&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=30600&Module=AR'
+WEBTRAC_630AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=46877848&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=23400&Module=AR'
+WEBTRAC_830AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=46877848&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=30600&Module=AR'
 
 WEBTRAC_USERID = os.environ['WEBTRAC_USERID']
 WEBTRAC_PASSWORD = os.environ['WEBTRAC_PASSWORD']
@@ -322,8 +374,8 @@ REDIS_PORT = os.environ['REDIS_PORT']
 REDIS_TTL = 60 * 60 * 48
 CHROME_DRIVER_EXECUTABLE = 'chromedriver'
 FIREFOX_DRIVER_EXECUTABLE = 'geckodriver'
+OPERA_DRIVER_EXECUTABLE = 'operadriver'
 DRIVER_PATH = './'
-PORT = os.getenv('PORT', '5030')
 
 
 if 'BROWSER' in os.environ:
@@ -334,12 +386,12 @@ else:
 
 # Use the presence of HOSTNAME environment variable to determine if we're running in a Docker container
 # (HOSTNAME is defined) or locally (no HOSTNAME).
-if 'NODE_HOST' in os.environ:
+if 'CONTAINER' in os.environ:
     print('Starting in container')
-    docker = True
+    container = True
 else:
     print('Starting outside a container')
-    docker = False
+    container = False
 
 if 'HEADLESS' in os.environ:
     HEADLESS = os.environ['HEADLESS']
@@ -366,12 +418,16 @@ redis_client = redis.Redis(
 
 print('Starting %s....' % sys.argv[0])
 print('Python: ' + sys.version)
-build_file = open('./static/build.txt')
-print('Running build:')
-for line in build_file.readlines():
-    print(line.strip())
-build_file.close()
-
+date_environ = os.environ.get('DATE')
+if date_environ is None:
+    date_environ = 'dev environment'
+print('Running build: %s' % date_environ)
+print('Environment Variables:')
+environment_vars = dict(os.environ)
+print(environment_vars)
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(PORT))
+    # app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+

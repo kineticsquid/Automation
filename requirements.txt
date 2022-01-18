@@ -3,3 +3,5 @@ flask
 twilio
 redis
 requests
+gunicorn
+bs4

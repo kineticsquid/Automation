@@ -1,0 +1,10 @@
+Dockerfile
+README.md
+chromedriver
+*.pyc
+*.pyo
+*.pyd
+*.sh
+__pycache__
+.pytest_cache
+venv
