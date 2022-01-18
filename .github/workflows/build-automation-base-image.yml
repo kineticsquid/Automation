@@ -27,7 +27,7 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: Build hub.docker.com Docker image
-        run: docker build ./Google_Calendar -t $DOCKER_HUB_IMAGE_NAME -f ./Dockerfile-base
+        run: docker build ./ -t $DOCKER_HUB_IMAGE_NAME -f ./Dockerfile-base
 
       - name: Push hub.docker.com Docker image
         run: docker push $DOCKER_HUB_IMAGE_NAME
