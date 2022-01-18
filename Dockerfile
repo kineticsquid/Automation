@@ -9,6 +9,7 @@ ENV PYTHONUNBUFFERED True
 ENV APP_HOME /app
 WORKDIR $APP_HOME
 COPY . ./
+RUN date > /app/static/build.txt
 
 # Run the web service on container startup. Here we use the gunicorn
 # webserver, with one worker process and 8 threads.
