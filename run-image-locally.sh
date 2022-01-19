@@ -1,10 +1,6 @@
 #!/bin/bash
 
-# Now run locally. Use "rm" to remove the container once it finishes
-#docker run --rm kineticsquid/automation-gcloud:latest \
-#  --env PORT=${PORT}
-
-export DATE=`date '+%F_%H:%M:%S'`
+docker pull kineticsquid/automation:latest
 
 docker run --rm -p 5030:5030 \
   --env TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID} \
@@ -16,10 +12,9 @@ docker run --rm -p 5030:5030 \
   --env WEBTRAC_USERID=${WEBTRAC_USERID} \
   --env WEBTRAC_PASSWORD=${WEBTRAC_PASSWORD} \
   --env PORT=${PORT} \
-  --env DATE=$DATE \
   --env CONTAINER=${CONTAINER} \
   --env HEADLESS=${HEADLESS} \
-  kineticsquid/automation-gcloud:latest
+  kineticsquid/automation:latest
 
 
 

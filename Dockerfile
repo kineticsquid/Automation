@@ -1,4 +1,4 @@
-FROM kineticsquid/automation-gcloud-base
+FROM kineticsquid/automation-base
 
 USER root
 
