@@ -3,7 +3,7 @@ FROM selenium/standalone-chrome
 USER root
 
 RUN apt-get update && apt-get install -y \
-    python3-pip
+    python3-pip apt-utils
 
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True
@@ -12,6 +12,7 @@ ENV PYTHONUNBUFFERED True
 ENV APP_HOME /app
 WORKDIR $APP_HOME
 ADD requirements.txt /app
+RUN date > /app/static/base_build.txt
 RUN pip install --no-cache-dir -r requirements.txt
 RUN apt-get install -y chromium-browser
 RUN apt-get install -y nano
