@@ -14,7 +14,7 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 import redis
 import os
-from flask import Flask, request, render_template, Response, url_for, abort, send_file
+from flask import Flask, request, render_template, Response, url_for, abort, send_file, jsonify
 import sys
 import traceback
 import json
@@ -333,8 +333,21 @@ def build():
     except FileNotFoundError:
         from datetime import date
         build_stamp = generate_build_stamp()
-    results = 'Running %s %s.\nBuild %s.\nPython %s.' % (sys.argv[0], app.name, build_stamp, sys.version)
-    return results
+    try:
+        base_build_file = open('static/base_build.txt')
+        base_build_stamp = base_build_file.readlines()[0]
+        base_build_file.close()
+    except FileNotFoundError:
+        from datetime import date
+        base_build_stamp = generate_build_stamp()
+    print('Running base build: %s' % base_build_stamp)
+    results = {
+        'Running': '%s %s' % (sys.argv[0], app.name),
+        'Python': sys.version,
+        'Build': build_stamp,
+        'Base build': base_build_stamp
+    }
+    return jsonify(results)
 
 
 def generate_build_stamp():
@@ -450,7 +463,7 @@ try:
 except FileNotFoundError:
     from datetime import date
     base_build_stamp = generate_build_stamp()
-print('Running build: %s' % base_build_stamp)
+print('Running base build: %s' % base_build_stamp)
 
 if __name__ == "__main__":
     # app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
