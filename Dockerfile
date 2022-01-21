@@ -1,6 +1,7 @@
 FROM kineticsquid/automation-base
 
-USER root
+# USER root
+USER seluser
 
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True

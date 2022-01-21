@@ -104,6 +104,7 @@ def get_browser_options():
 
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
+    options.add_experimental_option("useAutomationExtension", False)
     if HEADLESS is True:
         options.add_argument("--headless")
     return options
