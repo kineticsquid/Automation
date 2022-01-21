@@ -12,6 +12,7 @@ ENV PYTHONUNBUFFERED True
 ENV APP_HOME /app
 WORKDIR $APP_HOME
 ADD requirements.txt /app
+RUN mkdir /app/static
 RUN date > /app/static/base_build.txt
 RUN pip install --no-cache-dir -r requirements.txt
 RUN apt-get install -y chromium-browser
