@@ -115,6 +115,7 @@ def automation():
 
 @app.route('/webtrac')
 def webtrac():
+    print('Starting Webtrac request.')
     options = get_browser_options()
     if BROWSER == 'Chrome':
         if container:
@@ -134,6 +135,7 @@ def webtrac():
         driver = webdriver.Opera(options=options)
     else:
         raise Exception('Invalid value for \'BROWSER\' environment variable')
+    print('Created Selenium driver.')
     driver.set_window_size(1600, 1792)
     wait = WebDriverWait(driver, 5)
 
@@ -160,6 +162,7 @@ def webtrac():
 
     driver.get(WEBTRAC_URL_BASE)
     wait.until(expected_conditions.visibility_of_element_located((By.ID, 'weblogin_username')))
+    # :todo Need to fix: https://stackoverflow.com/questions/69875125/find-element-by-commands-are-deprecated-in-selenium
     username_field = driver.find_element_by_id('weblogin_username')
     username_field.clear()
     username_field.send_keys(WEBTRAC_USERID)
@@ -439,6 +442,15 @@ except FileNotFoundError:
     from datetime import date
     build_stamp = generate_build_stamp()
 print('Running build: %s' % build_stamp)
+
+try:
+    base_build_file = open('static/base_build.txt')
+    base_build_stamp = base_build_file.readlines()[0]
+    base_build_file.close()
+except FileNotFoundError:
+    from datetime import date
+    base_build_stamp = generate_build_stamp()
+print('Running build: %s' % base_build_stamp)
 
 if __name__ == "__main__":
     # app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
