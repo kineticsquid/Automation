@@ -59,4 +59,4 @@ jobs:
             WEBTRAC_PASSWORD=${{ secrets.WEBTRAC_PASSWORD }}
 
       - name: test the url
-        run: curl "${{ steps.deploy.outputs.url }}"/build-test
+        run: curl "${{ steps.deploy.outputs.url }}"/test-build
