@@ -10,11 +10,10 @@ ENV PYTHONUNBUFFERED True
 # Install production dependencies.
 ENV APP_HOME /app
 WORKDIR $APP_HOME
-ADD ../requirements.txt /app
-RUN pip install --no-cache-dir -r requirements.txt
-# RUN apt-get install -y chromium-browser
-RUN apt-get install -y nano
 COPY . ./
+#ADD requirements.txt /app
+RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get install -y nano
 RUN date > /app/static/build.txt
 
 USER seluser
