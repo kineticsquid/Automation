@@ -1,10 +1,11 @@
 Dockerfile
 README.md
-chromedriver
+geckodriver
+geckodriver.log
 *.pyc
 *.pyo
 *.pyd
 *.sh
 __pycache__
 .pytest_cache
-venv
+Firefox-test/*.*

@@ -3,16 +3,7 @@ name: Google Cloud Run Deploy
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'Dockerfile'
-      - '.github/workflows/deploy-to-google-cloud-run.yml'
-      - 'static/*'
-      - 'templates/*'
-      - '.dockerignore'
-      - '*.sh'
-      - '*.py'
-      - '*.txt'
-      - 'chromedriver'
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -61,14 +52,11 @@ jobs:
           env_vars: | 
             TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}, 
             TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}, 
-            HEADLESS=${{ secrets.HEADLESS }}, 
             REDIS_HOST=${{ secrets.REDIS_HOST }}, 
             REDIS_PORT=${{ secrets.REDIS_PORT }}, 
             REDIS_PW=${{ secrets.REDIS_PW }}, 
-            BROWSER=${{ secrets.BROWSER }}, 
             WEBTRAC_USERID=${{ secrets.WEBTRAC_USERID }}, 
-            WEBTRAC_PASSWORD=${{ secrets.WEBTRAC_PASSWORD }}, 
-            CONTAINER=${{ secrets.CONTAINER }}
+            WEBTRAC_PASSWORD=${{ secrets.WEBTRAC_PASSWORD }}
 
       - name: test the url
-        run: curl "${{ steps.deploy.outputs.url }}"/build
+        run: curl "${{ steps.deploy.outputs.url }}"/build-test
