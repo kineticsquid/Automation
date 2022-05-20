@@ -1,6 +1,7 @@
 """
 2021
 """
+from calendar import c
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
@@ -367,7 +368,12 @@ def clear_redis():
     number_of_entries = len(keys)
     for key in keys:
         redis_client.delete(key)
-    return Response('Removed %s redis entries' % number_of_entries, mimetype='text/text', status=200)
+
+    results = {
+        'Redis entries cleared': number_of_entries
+    }
+    return jsonify(results)
+
 
 # Your Account Sid and Auth Token from twilio.com/user/account
 account_sid = os.environ['TWILIO_ACCOUNT_SID']
@@ -392,7 +398,5 @@ print('Running build: %s' % build_stamp)
 
 
 if __name__ == "__main__":
-    # app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 
