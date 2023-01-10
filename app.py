@@ -1,6 +1,6 @@
-"""
-2021
-"""
+'''
+2023
+'''
 from calendar import c
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -10,6 +10,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 import redis
 import os
 from flask import Flask, request, render_template, Response, abort, jsonify
@@ -24,14 +26,8 @@ import urllib.parse
 import requests
 from bs4 import BeautifulSoup
 
-WEBTRAC_URL_BASE = 'https://webtrac.townofchapelhill.org/'
-WEBTRAC_HAC = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=Start&SubAction=&type=RES&subtype=HALAPRES&category=&age=&keyword=&keywordoption=Match+One&sort=ActivityNumber&primarycode=&display=Calendar&module=AR&multiselectlist_value=&arwebsearch_buttonsearch=Search'
+RWC_TIX_URL = 'https://tickets.rugbyworldcup.com/en'
 
-WEBTRAC_630AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=46877848&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=23400&Module=AR'
-WEBTRAC_830AM_RESERVATION = 'https://webtrac.townofchapelhill.org/wbwsc/webtrac.wsc/search.html?Action=UpdateSelection&ARFMIDList=46877848&FromProgram=search&GlobalSalesArea_ARItemBeginDate=%s/%s/%s&GlobalSalesArea_ARItemBeginTime=30600&Module=AR'
-
-WEBTRAC_USERID = os.environ['WEBTRAC_USERID']
-WEBTRAC_PASSWORD = os.environ['WEBTRAC_PASSWORD']
 TWILIO_ACCOUNT_SID = os.environ['TWILIO_ACCOUNT_SID']
 TWILIO_AUTH_TOKEN = os.environ['TWILIO_AUTH_TOKEN']
 REDIS_HOST = os.environ['REDIS_HOST']
@@ -54,14 +50,13 @@ def do_something_whenever_a_request_comes_in():
     # This is to force output to stdout to show up when we're running in a container
     sys.stdout.flush()
 
-
 @app.after_request
 def apply_headers(response):
     # This is to force output to stdout to show up when we're running in a container
     sys.stdout.flush()
     # These are to fix low severity vulnerabilities identified by AppScan
     # in a dynamic scan
-    response.headers['Content-Security-Policy'] = "object-src 'none'; script-src 'strict-dynamic'"
+    response.headers['Content-Security-Policy'] = 'object-src "none"; script-src "strict-dynamic"'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Last-Modified'] = datetime.now()
@@ -69,7 +64,6 @@ def apply_headers(response):
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
     return response
-
 
 @app.errorhandler(Exception)
 def handle_bad_request(e):
@@ -79,7 +73,6 @@ def handle_bad_request(e):
     send_sms('Automation error: %s' % str(e))
     return Response(json.dumps(error_content), status=500, mimetype='application/json')
 
-
 def send_sms(msg):
     message = twilio_client.messages.create(
         body=msg,
@@ -87,7 +80,6 @@ def send_sms(msg):
         to='+19192446142'
     )
     return message.sid
-
 
 def send_mms(media_url):
     if '0.0.0.0' not in request.host:
@@ -100,22 +92,20 @@ def send_mms(media_url):
     else:
         return None
 
-
 def send_screen_cap(driver):
     r = request
     now = datetime.now()
     filename = '/automation/%s.%s.png' % (now.strftime('%m-%d-%H-%M-%S'), uuid.uuid1())
-    mms_url = "http://%s/runtime_images%s" % (r.host, filename)
+    mms_url = 'http://%s/runtime_images%s' % (r.host, filename)
     image = driver.get_screenshot_as_png()
     redis_client.setex(filename, REDIS_TTL, image)
     send_mms(mms_url)
-
 
 def get_driver():
     options = FirefoxOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    options.add_argument("--headless")
+    # options.add_argument('--headless')
     if os.path.exists(CONTAINER_PATH):
         # We know we're operating in a container - this path is set in Dockerfile
         service = FirefoxService(log_path='%s%s' % (CONTAINER_PATH, LOG_FILE_NAME))
@@ -126,22 +116,155 @@ def get_driver():
         driver = webdriver.Firefox(service=service, options=options)
     return driver
 
-
 @app.route('/')
 def automation():
     return render_template('index.html')
 
+@app.route('/rwc')
+def rwc():
+
+    def get_homepage(driver):
+        # Load main page
+        driver.get(RWC_TIX_URL)
+        print('Loaded home page: %s.' % RWC_TIX_URL)
+        time.sleep(1)
+        # Now deal with cookie prompt
+        accept_button = driver.find_element(By.ID, "onetrust-accept-btn-handler")
+        accept_button.click()
+        print('Dealt with cookie prompt.')
+        time.sleep(1)
+        # Now deal with welcome pop-up
+        enter_button = driver.find_element(By.CLASS_NAME, "popin-link")
+        enter_button.click()
+        print('Dealt with welcome pop-up.')
+
+    print('Starting RWC 2023 request.')
+
+    print('================== New Request ====================')
+    now = datetime.now()
+    print('Local time: %s' % now.strftime(' %a - %m/%d - %H:%M:%S'))
+
+    # rwc_driver = get_driver()
+    # wait = WebDriverWait(rwc_driver, 5)
+    # get_homepage(rwc_driver)
+    # rows = rwc_driver.find_elements(By.CLASS_NAME, 'list-ticket-content')
+    # for row in rows:
+    #     text = row.text.strip()
+    #     print(text)
+
+    response = requests.get(RWC_TIX_URL)
+    if response.status_code != 200:
+        raise Exception('HTML error %s retrieving \'%s\'.' % (response.status_code, RWC_TIX_URL))
+    html = response.content.decode('utf-8')
+    soup = BeautifulSoup(html, 'html.parser')
+    soup_rows = soup.find_all(class_='list-ticket-content')
+    for row in soup_rows:
+        text = row.text.strip()
+        game_str = text[0:text.find('\n')]
+        v = game_str.find('v')
+        teams = '%s vs. %s' % (game_str[0:v], game_str[v+1: len(game_str)])
+        unavailable = text.find('Unavailable') > 0
+        if unavailable:
+            print('%s - %s' % (teams, 'unavailable'))
+        else:
+            print('%s - %s' % (teams, 'available'))
+
+
+    try:
+        count = 1
+        done = False
+        start_time = time.time()
+        stop_time = start_time + total_processing_time_in_secs
+        while not done and time.time() < stop_time:
+            try:
+                print('Loading %s' % webtrac_url)
+                rwc_driver.get(webtrac_url)
+                wait.until(expected_conditions.visibility_of_element_located((By.ID, 'content')))
+                print('Schedule calendar loaded.')
+                # At this point the calendar for this pool schedule is visible
+                rwc_driver.get(reservation_url)
+                print('Attempted to make reservation at %s' % reservation_url)
+                print(rwc_driver.page_source)
+                rwc_driver.back()
+                # Click the confirmation to add the reservation to shopping cart
+                add_button = rwc_driver.find_element(By.CLASS_NAME, 'websearch_multiselect_buttonaddtocart')
+                add_button.click()
+                wait.until(expected_conditions.visibility_of_element_located((By.ID, 'content')))
+                print('Selected calendar schedule day and confirmed add to cart.')
+
+                # We're logged in, now presented with terms of use, click the checkbox and the click on the
+                # continue button.Sometimes these terms do not show up. Don't understand when.
+                try:
+                    terms_checkbox = rwc_driver.find_element(By.ID, 'processingprompts_waivercheckbox')
+                    terms_checkbox.click()
+                    continue_button = rwc_driver.find_element(By.ID, 'processingprompts_buttoncontinue')
+                    continue_button.click()
+                    print('Accepted terms.')
+                except NoSuchElementException:
+                    print('Accept terms page not displayed. Skipping.')
+
+                # We may see a selection box asking how did we learn about the program. Look for it and select a reason
+                # if present.
+                try:
+                    learn_about_selection_list = Select(rwc_driver.find_element(By.ID, 'question44537618'))
+                    learn_about_selection_list.select_by_visible_text('Website')
+                    continue_button = rwc_driver.find_element(By.ID, 'processingprompts_buttoncontinue')
+                    continue_button.click()
+                    print('Handled how did you learn about us.')
+                except NoSuchElementException:
+                    print('How did you learn about us page not displayed. Skipping.')
+
+                try:
+                    # Now, we're at checkout, click the proceed to checkout button
+                    checkout_button = rwc_driver.find_element(By.ID, 'webcart_buttoncheckout')
+                    checkout_button.click()
+                    print('Proceeding to checkout.')
+
+                    # Continue checkout
+                    continue_checkout_button = rwc_driver.find_element(By.ID, 'webcheckout_buttoncontinue')
+                    continue_checkout_button.click()
+                    print('Checked out.')
+                    done = True
+                except NoSuchElementException:
+                    print('Unable to checkout.')
+            except Exception as e:
+                print('Exception: %s' % e)
+                print('Unsuccessful on attempt: %s. Waiting for %s secs.' % (count, wait_time_between_tried_in_secs))
+                if count == 1:
+                    send_screen_cap(rwc_driver)
+                time.sleep(wait_time_between_tried_in_secs)
+                count += 1
+        if not done:
+            raise Exception('Failed to secure a reservation.')
+
+        # Reservation successful
+        send_email_button = rwc_driver.find_element(By.ID, 'webconfirmation_buttonsumbit')
+        send_email_button.click()
+        result_msg = 'Reservation made for %s/%s' % (one_week_out_month, one_week_out_day)
+        send_sms(result_msg)
+
+        rwc_driver.close()
+        response_content = {'Result': result_msg}
+        return Response(json.dumps(response_content), status=200, mimetype='application/json')
+
+    except Exception as e:
+        print('>>>>>>>> Error <<<<<<<<')
+        print(e)
+        traceback.print_exc()
+        print('Session ID: %s' % rwc_driver.session_id)
+        response_content = {'Result': 'Error: %s' % e}
+        return Response(json.dumps(response_content), status=500, mimetype='application/json')
 
 @app.route('/webtrac')
 def webtrac():
     print('Starting Webtrac request.')
 
     one_week_out = date.fromordinal(date.today().toordinal() + 7)
-    one_week_out_month_string = one_week_out.strftime("%m")
-    one_week_out_day_string = one_week_out.strftime("%d")
+    one_week_out_month_string = one_week_out.strftime('%m')
+    one_week_out_day_string = one_week_out.strftime('%d')
     one_week_out_month = str(int(one_week_out_month_string))
     one_week_out_day = str(int(one_week_out_day_string))
-    one_week_out_year = one_week_out.strftime("%Y")
+    one_week_out_year = one_week_out.strftime('%Y')
 
     now = datetime.now()
     wait_time_between_tried_in_secs = 120
@@ -206,7 +329,7 @@ def webtrac():
                 # if present.
                 try:
                     learn_about_selection_list = Select(driver.find_element(By.ID, 'question44537618'))
-                    learn_about_selection_list.select_by_visible_text("Website")
+                    learn_about_selection_list.select_by_visible_text('Website')
                     continue_button = driver.find_element(By.ID, 'processingprompts_buttoncontinue')
                     continue_button.click()
                     print('Handled how did you learn about us.')
@@ -271,7 +394,7 @@ def xbox():
     if response.status_code != 200:
         raise Exception('HTML error %s retrieving \'%s\'.' % (response.status_code, GAME_STOP_URL))
     html = response.content.decode('utf-8')
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(html, 'html.parser')
     entries = soup.find_all(id='add-to-cart-buttons')
     if len(entries) == 0:
         raise Exception('Unable to find x-box at Game Stop web site')
@@ -289,7 +412,7 @@ def xbox():
     if response.status_code != 200:
         raise Exception('HTML error %s retrieving \'%s\'.' % (response.status_code, BEST_BUY_URL))
     html = response.content.decode('utf-8')
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(html, 'html.parser')
     list = soup.find_all(class_='sku-item-list')
     entries = soup.find_all(class_='fulfillment-add-to-cart-button')
     combo_entries = soup.find_all(class_='fulfillment-combo-add-to-cart-button')
@@ -334,7 +457,7 @@ def build():
 
 
 def generate_build_stamp():
-    return 'Development build - %s' % date.today().strftime("%m/%d/%y")
+    return 'Development build - %s' % date.today().strftime('%m/%d/%y')
 
 
 @app.route('/runtime_images', defaults={'file_path': ''})
@@ -348,7 +471,7 @@ def images(file_path):
             matrix_image_names.append(entry.decode('utf-8'))
         return render_template('images.html', files=matrix_image_names, title='Screen Caps')
     else:
-        url_file_path = urllib.parse.quote("/%s" % file_path)
+        url_file_path = urllib.parse.quote('/%s' % file_path)
         matrix_bytes = redis_client.get(url_file_path)
         if matrix_bytes is None:
             return abort(404)
@@ -397,6 +520,6 @@ except FileNotFoundError:
 print('Running build: %s' % build_stamp)
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 

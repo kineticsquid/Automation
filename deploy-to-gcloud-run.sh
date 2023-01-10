@@ -13,7 +13,9 @@ gcloud run deploy automation --allow-unauthenticated --project cloud-run-stuff -
   --set-env-vars=REDIS_PORT=$REDIS_PORT \
   --set-env-vars=REDIS_PW=$REDIS_PW \
   --set-env-vars=BROWSER=$BROWSER \
-  --set-env-vars=WEBTRAC_USERID=$WEBTRAC_USERID \
-  --set-env-vars=WEBTRAC_PASSWORD=$WEBTRAC_PASSWORD \
+  --set-env-vars=RWC_ID=$RWC_ID \
+  --set-env-vars=RWC_PW=$RWC_PW \
+  --set-env-vars=RWC_TIX_ID=$RWC_TIX_ID \
+  --set-env-vars=RWC_TIX_PW=$RWC_TIX_PW \
   --set-env-vars=HEADLESS=$HEADLESS \
   --set-env-vars=CONTAINER=$CONTAINER
