@@ -1,17 +1,11 @@
 '''
 2023
 '''
-from calendar import c
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support.ui import Select
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
 import redis
 import os
 from flask import Flask, request, render_template, Response, abort, jsonify
@@ -21,6 +15,7 @@ import json
 from twilio.rest import Client
 import time
 from datetime import datetime, date
+import pytz
 import uuid
 import urllib.parse
 import requests
@@ -33,6 +28,7 @@ TWILIO_AUTH_TOKEN = os.environ['TWILIO_AUTH_TOKEN']
 REDIS_HOST = os.environ['REDIS_HOST']
 REDIS_PW = os.environ['REDIS_PW']
 REDIS_PORT = os.environ['REDIS_PORT']
+HEADLESS = os.environ.get('HEADLESS')
 REDIS_TTL = 60 * 60 * 48
 CONTAINER_PATH = '/home/seluser/'
 GECKODRIVER_PATH = './geckodriver'
@@ -73,7 +69,10 @@ def handle_bad_request(e):
     send_sms('Automation error: %s' % str(e))
     return Response(json.dumps(error_content), status=500, mimetype='application/json')
 
-def send_sms(msg):
+def send_sms(text):
+    EST = pytz.timezone('US/Eastern')
+    time_now = datetime.now(EST).strftime('%b %d - %H:%M:%S')
+    msg = '%s:\n%s' % (time_now, text)
     message = twilio_client.messages.create(
         body=msg,
         from_='+19842144312',
@@ -92,28 +91,36 @@ def send_mms(media_url):
     else:
         return None
 
-def send_screen_cap(driver):
+def get_screen_cap(driver):
     r = request
     now = datetime.now()
     filename = '/automation/%s.%s.png' % (now.strftime('%m-%d-%H-%M-%S'), uuid.uuid1())
     mms_url = 'http://%s/runtime_images%s' % (r.host, filename)
     image = driver.get_screenshot_as_png()
     redis_client.setex(filename, REDIS_TTL, image)
-    send_mms(mms_url)
+    return mms_url
 
 def get_driver():
     options = FirefoxOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    # options.add_argument('--headless')
+    if HEADLESS == 'True':
+        print('Running headless')
+        options.add_argument('--headless')
+    else:
+        print('Not running headless')
     if os.path.exists(CONTAINER_PATH):
         # We know we're operating in a container - this path is set in Dockerfile
+        print('Running in a container')
         service = FirefoxService(log_path='%s%s' % (CONTAINER_PATH, LOG_FILE_NAME))
         driver = webdriver.Firefox(service=service, options=options)
     else:
         # Running in a local development environment
+        print('Not running in a container')
         service = FirefoxService(executable_path=GECKODRIVER_PATH)
         driver = webdriver.Firefox(service=service, options=options)
+    size = driver.get_window_size()
+    driver.set_window_size(size['width'],size['height']*2)
     return driver
 
 @app.route('/')
@@ -123,260 +130,148 @@ def automation():
 @app.route('/rwc')
 def rwc():
 
-    def get_homepage(driver):
-        # Load main page
+    def deal_with_cookie_prompt(driver):
+        done = False
+        attempt = 1
+        while not done:
+            try:
+                button = driver.find_element(By.ID, "onetrust-accept-btn-handler")
+                button.click()
+                print('Dismissed cookie pompt.')
+                done = True
+            except Exception:
+                print('Didn\'t see or couldn\'t dismuss cookie pompt.')
+                time.sleep(1)
+                attempt += 1
+            if attempt > 5:
+                raise Exception('Could not dismiss cookie prompt after %s attempts.' % attempt)
+            else:
+                time.sleep(1)
+
+    def get_into_queue(driver):
         driver.get(RWC_TIX_URL)
         print('Loaded home page: %s.' % RWC_TIX_URL)
         time.sleep(1)
+        print('Main ticketing page loaded')
         # Now deal with cookie prompt
-        accept_button = driver.find_element(By.ID, "onetrust-accept-btn-handler")
-        accept_button.click()
-        print('Dealt with cookie prompt.')
+        enter_buttons = driver.find_elements(By.CLASS_NAME, "btn-primary")
+        if len(enter_buttons) == 1 and 'ENTER' in enter_buttons[0].text:
+            enter_buttons[0].click()
+        print('Clicked to enter queue.')
         time.sleep(1)
-        # Now deal with welcome pop-up
-        enter_button = driver.find_element(By.CLASS_NAME, "popin-link")
-        enter_button.click()
-        print('Dealt with welcome pop-up.')
+    
+    def get_past_queue(driver):
+        max_attempts = 10
+        current_attempt = 1
+        done = False
+        while not done:
+            buttons = driver.find_elements(By.ID, "onetrust-accept-btn-handler")
+            if len(buttons) > 0:
+                buttons[0].click()
+                print('Through queue')
+                done = True
+            else:
+                if current_attempt > max_attempts:
+                    url = get_screen_cap(driver)
+                    print('Not through queue after max attempts')
+                    print('Screen cap: %s' % url)
+                    done = True
+                else:
+                    current_attempt += 1
+                    percentages = driver.find_elements(By.CLASS_NAME, "percentage")
+                    if len(percentages) > 0:
+                        print(percentages[0])
+                    print('In queue, waiting 2 seconds')
+                    time.sleep(2)
+
 
     print('Starting RWC 2023 request.')
-
     print('================== New Request ====================')
     now = datetime.now()
     print('Local time: %s' % now.strftime(' %a - %m/%d - %H:%M:%S'))
 
-    # rwc_driver = get_driver()
-    # wait = WebDriverWait(rwc_driver, 5)
-    # get_homepage(rwc_driver)
-    # rows = rwc_driver.find_elements(By.CLASS_NAME, 'list-ticket-content')
-    # for row in rows:
-    #     text = row.text.strip()
-    #     print(text)
-
-    response = requests.get(RWC_TIX_URL)
-    if response.status_code != 200:
-        raise Exception('HTML error %s retrieving \'%s\'.' % (response.status_code, RWC_TIX_URL))
-    html = response.content.decode('utf-8')
-    soup = BeautifulSoup(html, 'html.parser')
-    soup_rows = soup.find_all(class_='list-ticket-content')
-    for row in soup_rows:
-        text = row.text.strip()
-        game_str = text[0:text.find('\n')]
-        v = game_str.find('v')
-        teams = '%s vs. %s' % (game_str[0:v], game_str[v+1: len(game_str)])
-        unavailable = text.find('Unavailable') > 0
-        if unavailable:
-            print('%s - %s' % (teams, 'unavailable'))
-        else:
-            print('%s - %s' % (teams, 'available'))
-
+    matches = [
+        'EnglandvArgentina',
+        'EnglandvJapan'
+        ]
+    
+    def match_match(string):
+        found = False
+        for match in matches:
+            if match in string:
+                found = True
+                break
+        return found
 
     try:
-        count = 1
-        done = False
-        start_time = time.time()
-        stop_time = start_time + total_processing_time_in_secs
-        while not done and time.time() < stop_time:
-            try:
-                print('Loading %s' % webtrac_url)
-                rwc_driver.get(webtrac_url)
-                wait.until(expected_conditions.visibility_of_element_located((By.ID, 'content')))
-                print('Schedule calendar loaded.')
-                # At this point the calendar for this pool schedule is visible
-                rwc_driver.get(reservation_url)
-                print('Attempted to make reservation at %s' % reservation_url)
-                print(rwc_driver.page_source)
-                rwc_driver.back()
-                # Click the confirmation to add the reservation to shopping cart
-                add_button = rwc_driver.find_element(By.CLASS_NAME, 'websearch_multiselect_buttonaddtocart')
-                add_button.click()
-                wait.until(expected_conditions.visibility_of_element_located((By.ID, 'content')))
-                print('Selected calendar schedule day and confirmed add to cart.')
+        driver = get_driver()
+        get_into_queue(driver)
+        get_past_queue(driver)
+        # deal_with_cookie_prompt(driver)
+        time.sleep(1)
+        tix_results = ''
 
-                # We're logged in, now presented with terms of use, click the checkbox and the click on the
-                # continue button.Sometimes these terms do not show up. Don't understand when.
-                try:
-                    terms_checkbox = rwc_driver.find_element(By.ID, 'processingprompts_waivercheckbox')
-                    terms_checkbox.click()
-                    continue_button = rwc_driver.find_element(By.ID, 'processingprompts_buttoncontinue')
-                    continue_button.click()
-                    print('Accepted terms.')
-                except NoSuchElementException:
-                    print('Accept terms page not displayed. Skipping.')
-
-                # We may see a selection box asking how did we learn about the program. Look for it and select a reason
-                # if present.
-                try:
-                    learn_about_selection_list = Select(rwc_driver.find_element(By.ID, 'question44537618'))
-                    learn_about_selection_list.select_by_visible_text('Website')
-                    continue_button = rwc_driver.find_element(By.ID, 'processingprompts_buttoncontinue')
-                    continue_button.click()
-                    print('Handled how did you learn about us.')
-                except NoSuchElementException:
-                    print('How did you learn about us page not displayed. Skipping.')
-
-                try:
-                    # Now, we're at checkout, click the proceed to checkout button
-                    checkout_button = rwc_driver.find_element(By.ID, 'webcart_buttoncheckout')
-                    checkout_button.click()
-                    print('Proceeding to checkout.')
-
-                    # Continue checkout
-                    continue_checkout_button = rwc_driver.find_element(By.ID, 'webcheckout_buttoncontinue')
-                    continue_checkout_button.click()
-                    print('Checked out.')
-                    done = True
-                except NoSuchElementException:
-                    print('Unable to checkout.')
-            except Exception as e:
-                print('Exception: %s' % e)
-                print('Unsuccessful on attempt: %s. Waiting for %s secs.' % (count, wait_time_between_tried_in_secs))
-                if count == 1:
-                    send_screen_cap(rwc_driver)
-                time.sleep(wait_time_between_tried_in_secs)
-                count += 1
-        if not done:
-            raise Exception('Failed to secure a reservation.')
-
-        # Reservation successful
-        send_email_button = rwc_driver.find_element(By.ID, 'webconfirmation_buttonsumbit')
-        send_email_button.click()
-        result_msg = 'Reservation made for %s/%s' % (one_week_out_month, one_week_out_day)
-        send_sms(result_msg)
-
-        rwc_driver.close()
-        response_content = {'Result': result_msg}
-        return Response(json.dumps(response_content), status=200, mimetype='application/json')
-
-    except Exception as e:
-        print('>>>>>>>> Error <<<<<<<<')
-        print(e)
-        traceback.print_exc()
-        print('Session ID: %s' % rwc_driver.session_id)
-        response_content = {'Result': 'Error: %s' % e}
-        return Response(json.dumps(response_content), status=500, mimetype='application/json')
-
-@app.route('/webtrac')
-def webtrac():
-    print('Starting Webtrac request.')
-
-    one_week_out = date.fromordinal(date.today().toordinal() + 7)
-    one_week_out_month_string = one_week_out.strftime('%m')
-    one_week_out_day_string = one_week_out.strftime('%d')
-    one_week_out_month = str(int(one_week_out_month_string))
-    one_week_out_day = str(int(one_week_out_day_string))
-    one_week_out_year = one_week_out.strftime('%Y')
-
-    now = datetime.now()
-    wait_time_between_tried_in_secs = 120
-    total_processing_time_in_secs = 8 * 60 * 60
-
-    webtrac_url = WEBTRAC_HAC
-
-    reservation_url = WEBTRAC_830AM_RESERVATION % (one_week_out_month_string, one_week_out_day_string, one_week_out_year)
-
-    print('================== New Request ====================')
-    now = datetime.now()
-    print('Local time: %s' % now.strftime(' %a - %m/%d - %H:%M:%S'))
-
-    driver = get_driver()
-    wait = WebDriverWait(driver, 5)
-    driver.get(WEBTRAC_URL_BASE)
-    wait.until(expected_conditions.visibility_of_element_located((By.ID, 'weblogin_username')))
-    username_field = driver.find_element(By.ID, 'weblogin_username')
-    username_field.clear()
-    username_field.send_keys(WEBTRAC_USERID)
-    password_field = driver.find_element(By.ID, 'weblogin_password')
-    password_field.clear()
-    password_field.send_keys(WEBTRAC_PASSWORD)
-    login_button = driver.find_element(By.ID, 'xxproclogin')
-    login_button.click()
-    print('Successfully authenticated.')
-
-    try:
-        count = 1
-        done = False
-        start_time = time.time()
-        stop_time = start_time + total_processing_time_in_secs
-        while not done and time.time() < stop_time:
-            try:
-                print('Loading %s' % webtrac_url)
-                driver.get(webtrac_url)
-                wait.until(expected_conditions.visibility_of_element_located((By.ID, 'content')))
-                print('Schedule calendar loaded.')
-                # At this point the calendar for this pool schedule is visible
-                driver.get(reservation_url)
-                print('Attempted to make reservation at %s' % reservation_url)
-                print(driver.page_source)
+        # First filter to just England games
+        selects = driver.find_elements(By.CLASS_NAME, "js-team-filter")
+        selects[0].send_keys('England')
+        # selects[0].send_keys('Australia')
+        time.sleep(1)
+        # Now loop through all offers looking for the matches we want
+        offers = driver.find_elements(By.CLASS_NAME, "list-ticket-content")
+        for i in range(0, len(offers)):
+            offer = offers[i]
+            offer_text = offer.text
+            if match_match(offer.text):
+                print("Matched offer: %s" % offer_text)
+                show_button = offer.find_element(By.CLASS_NAME, "js-show-offers")
+                show_button.click()
+                time.sleep(2)
+                print("Clicked offer button")
+                offer_modal = driver.find_element(By.CLASS_NAME, "modal-resale-option")
+                offer_button = offer_modal.find_element(By.CLASS_NAME, "btn-resale")
+                offer_button.click()
+                time.sleep(2)
+                print("Dismissed offer modal")
+                ticket_contents = driver.find_elements(By.CLASS_NAME, "nb-tickets")
+                if len(ticket_contents) > 0:
+                    print("Found tix")
+                    ticket_text = ticket_contents[0].text
+                    tix_results = tix_results + '\n%s\n%s' % (offer_text, ticket_text)
+                else:
+                    print("Found no tix")
+                    no_tix = driver.find_element(By.CLASS_NAME, "ticket-content-container")
+                    no_tix_text = no_tix.text
+                    if 'No ticket' not in no_tix_text:
+                        url = get_screen_cap(driver)
+                        send_sms('Error in %s' % offer.text)
+                        send_mms(url)
                 driver.back()
-                # Click the confirmation to add the reservation to shopping cart
-                add_button = driver.find_element(By.CLASS_NAME, 'websearch_multiselect_buttonaddtocart')
-                add_button.click()
-                wait.until(expected_conditions.visibility_of_element_located((By.ID, 'content')))
-                print('Selected calendar schedule day and confirmed add to cart.')
-
-                # We're logged in, now presented with terms of use, click the checkbox and the click on the
-                # continue button.Sometimes these terms do not show up. Don't understand when.
-                try:
-                    terms_checkbox = driver.find_element(By.ID, 'processingprompts_waivercheckbox')
-                    terms_checkbox.click()
-                    continue_button = driver.find_element(By.ID, 'processingprompts_buttoncontinue')
-                    continue_button.click()
-                    print('Accepted terms.')
-                except NoSuchElementException:
-                    print('Accept terms page not displayed. Skipping.')
-
-                # We may see a selection box asking how did we learn about the program. Look for it and select a reason
-                # if present.
-                try:
-                    learn_about_selection_list = Select(driver.find_element(By.ID, 'question44537618'))
-                    learn_about_selection_list.select_by_visible_text('Website')
-                    continue_button = driver.find_element(By.ID, 'processingprompts_buttoncontinue')
-                    continue_button.click()
-                    print('Handled how did you learn about us.')
-                except NoSuchElementException:
-                    print('How did you learn about us page not displayed. Skipping.')
-
-                try:
-                    # Now, we're at checkout, click the proceed to checkout button
-                    checkout_button = driver.find_element(By.ID, 'webcart_buttoncheckout')
-                    checkout_button.click()
-                    print('Proceeding to checkout.')
-
-                    # Continue checkout
-                    continue_checkout_button = driver.find_element(By.ID, 'webcheckout_buttoncontinue')
-                    continue_checkout_button.click()
-                    print('Checked out.')
-                    done = True
-                except NoSuchElementException:
-                    print('Unable to checkout.')
-            except Exception as e:
-                print('Exception: %s' % e)
-                print('Unsuccessful on attempt: %s. Waiting for %s secs.' % (count, wait_time_between_tried_in_secs))
-                if count == 1:
-                    send_screen_cap(driver)
-                time.sleep(wait_time_between_tried_in_secs)
-                count += 1
-        if not done:
-            raise Exception('Failed to secure a reservation.')
-
-        # Reservation successful
-        send_email_button = driver.find_element(By.ID, 'webconfirmation_buttonsumbit')
-        send_email_button.click()
-        result_msg = 'Reservation made for %s/%s' % (one_week_out_month, one_week_out_day)
-        send_sms(result_msg)
-
+                print("Issued browser back")
+                # Need to work by index and refresh the list of results because otherwise they get stale and
+                # result in exceptions
+                offers = driver.find_elements(By.CLASS_NAME, "list-ticket-content")
+        
         driver.close()
-        response_content = {'Result': result_msg}
-        return Response(json.dumps(response_content), status=200, mimetype='application/json')
-
+        print("Closed driver")
+        if len(tix_results) > 0:
+            print('Results:')
+            print(tix_results)
+            send_sms(tix_results)
+            send_sms(RWC_TIX_URL)
+        else:
+            print('No results for:')
+            print(json.dumps(matches, indent=4))
+        status = 200
     except Exception as e:
-        print('>>>>>>>> Error <<<<<<<<')
-        print(e)
-        traceback.print_exc()
-        print('Session ID: %s' % driver.session_id)
-        response_content = {'Result': 'Error: %s' % e}
-        return Response(json.dumps(response_content), status=500, mimetype='application/json')
+        print('Exception: %s' % e)
+        get_screen_cap(driver)
+        print(traceback.format_exc())
+        status = 500
 
+    if len(tix_results) > 0:
+        return Response(json.dumps(tix_results), status=status)
+    else:
+        return Response("No results for %s" % matches, status=status)
 
 @app.route('/xbox')
 def xbox():
@@ -510,6 +405,8 @@ redis_client = redis.Redis(
 
 print('Starting %s %s' % (sys.argv[0], app.name))
 print('Python: ' + sys.version)
+print('Environment Variables:')
+print(json.dumps(dict(os.environ), indent=4))
 
 try:
     build_file = open('static/build.txt')
