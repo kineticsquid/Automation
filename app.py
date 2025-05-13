@@ -43,6 +43,19 @@ def do_something_whenever_a_request_comes_in():
     url = r.url
     method = r.method
     print('>>>> Call into %s with %s ' % (url, method))
+    if r.path != '/heartbeat':
+        headers = r.headers
+        if len(headers) > 0:
+            print('Request headers: \n%s' % headers)
+        args = r.args
+        if len(args) > 0:
+            print('Request query parameters: \n%s' % args)
+        values = r.values
+        if len(values) > 0:
+            print('Request values: \n%s' % values)
+        data = r.data
+        if len(data) > 0:
+            print('Data payload: \n%s' % data)
     # This is to force output to stdout to show up when we're running in a container
     sys.stdout.flush()
 

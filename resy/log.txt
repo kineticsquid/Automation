@@ -1,0 +1,14 @@
+04/22/25: 13:50:23.049234 - >>>> Attempt Start <<<<< 
+04/22/25: 13:50:26.262388 - https://resy.com/cities/chicago-il/venues/armitage-alehouse?date=2025-05-12&seats=2
+04/22/25: 13:50:28.230186 - "Password" button clicked.
+04/22/25: 13:50:28.884960 - "Continue" button clicked.
+04/22/25: 13:50:30.072126 - "No Thanks" button clicked.
+04/22/25: 13:50:30.072152 - Logged in
+04/22/25: 13:50:30.072255 - Don't need to idle
+04/22/25: 13:50:31.424589 - "No Thanks" button not found.
+04/22/25: 13:50:31.431246 - Page did not completely render
+04/22/25: 13:50:32.884401 - "No Thanks" button not found.
+04/22/25: 13:50:32.891580 - Schedule page rendered
+04/22/25: 13:50:32.939608 - Schedule available for this day
+04/22/25: 13:50:32.941860 - Screen cap: 2025-04-22 13:50:32.941371
+04/22/25: 13:50:32.969656 - No reservations available
